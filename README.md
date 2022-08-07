@@ -1,3 +1,10 @@
+# Fork purpose
+
+This fork contains extra features:
+
+- Loading of curl requests from files marked with `.curl`
+
+
 # wuzz
 
 Interactive cli tool for HTTP inspection.
