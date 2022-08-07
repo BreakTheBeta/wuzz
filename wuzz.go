@@ -26,6 +26,7 @@ import (
 
 	"github.com/asciimoo/wuzz/config"
 	"github.com/asciimoo/wuzz/formatter"
+	"github.com/google/shlex"
 
 	"github.com/alessio/shellescape"
 	"github.com/jroimartin/gocui"
@@ -1225,7 +1226,16 @@ func (a *App) LoadRequest(g *gocui.Gui, loadLocation string) (err error) {
 	}
 
 	var requestMap map[string]string
-	jsonErr := json.Unmarshal(requestJson, &requestMap)
+	var jsonErr error
+
+	if loadLocation[len(loadLocation)-5:] == ".curl" {
+		// Moose
+		importCurl(requestJson, &requestMap)
+		// fmt.Printf("%v", requestMap)
+	} else {
+		jsonErr = json.Unmarshal(requestJson, &requestMap)
+	}
+
 	if jsonErr != nil {
 		g.Update(func(g *gocui.Gui) error {
 			vrb, _ := g.View(RESPONSE_BODY_VIEW)
@@ -1942,4 +1952,36 @@ func exportCurl(r Request) []byte {
 		params = fmt.Sprintf("?%s", r.GetParams)
 	}
 	return []byte(fmt.Sprintf("curl %s -X %s -d %s %s\n", headers, r.Method, shellescape.Quote(r.Data), shellescape.Quote(r.Url+params)))
+}
+
+func importCurl(data []byte, rData *map[string]string) error {
+	split, err := shlex.Split(string(data))
+	if err != nil {
+		return err
+	}
+
+	*rData = make(map[string]string)
+
+	(*rData)[URL_VIEW] = split[len(split)-1]
+
+	headers := ""
+	method := ""
+	requstData := ""
+
+	for i, v := range split {
+		switch v {
+		case "-H":
+			headers = headers + split[i+1] + "\n"
+		case "-X":
+			method = split[i+1]
+		case "-d":
+			requstData = split[i+1]
+		}
+	}
+
+	(*rData)[REQUEST_METHOD_VIEW] = method
+	(*rData)[REQUEST_HEADERS_VIEW] = headers
+	(*rData)[REQUEST_DATA_VIEW] = requstData
+
+	return nil
 }
